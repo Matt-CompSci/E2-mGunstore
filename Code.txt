@@ -1,0 +1,319 @@
+@name mGunstore
+@inputs [EGP]:wirelink [User]:entity [CurPly]:entity [R1 R2 R3 R4]:entity
+@persist [Cache]:table
+@outputs [U1 U2 U3 U4 DoorFade]:number
+
+if(first())
+{
+    # Cache commonly used values to reduce lookups
+    Cache["E2", entity] = entity()
+    Cache["Owner", entity] = owner()
+    Cache["WeldedTo", entity] = entity():isWeldedTo()
+    Cache["ObjAmount", number] = 0
+    Cache["Alpha", number] = 200
+    Cache["Page", number] = 1
+    Cache["Profit", number] = 1000
+    
+    # Autowire to the EGP screen the chip is placed on
+    Cache["E2", entity]:createWire(Cache["WeldedTo", entity], "EGP", "wirelink")
+    Cache["E2", entity]:createWire(Cache["WeldedTo", entity], "User", "User")
+    
+    entity():propNotSolid(0)
+    
+    function void wirelink:drawBackground()
+    {
+        This:egpClear()
+        This:egpBox(1, vec2(256), vec2(512))
+        This:egpMaterial(1, "skybox/sky_dust_hdrft")
+    }
+    
+    function void wirelink:drawWelcomeScreen()
+    {
+        This:drawBackground()
+
+        This:egpRoundedBox(2, vec2(256, 96), vec2(384, 128))
+        This:egpAlpha(2, 165)
+        
+        This:egpText(3, "mGunstore", vec2(256, 96))
+        This:egpAlign(3, 1, 1)
+        This:egpSize(3, 42)
+        This:egpColor(3, vec(0))
+        
+        This:egpRoundedBox(4, vec2(256), vec2(384, 64))
+        This:egpAlpha(4, 120)
+        
+        This:egpText(5, "Press E to Start", vec2(256))
+        This:egpAlign(5, 1, 1)
+        This:egpSize(5, 42)
+        This:egpColor(5, vec(0))
+        
+        This:egpRoundedBox(6, vec2(256, 384), vec2(384, 64))
+        This:egpAlpha(6, 120)
+        
+        This:egpText(7, "Toggle Door", vec2(256, 384))
+        This:egpAlign(7, 1, 1)
+        This:egpSize(7, 42)
+        This:egpColor(7, vec(0))
+        
+        EGP:egpBox(8, vec2(256), vec2(32))
+        EGP:egpMaterial(8, "vgui/cursors/hand")
+        EGP:egpParentToCursor(8)
+    }
+    
+    function number wirelink:hoverButton(Ply:entity, ID:number)
+    {
+        Cursor = This:egpCursor(Ply)
+        Center = This:egpPos(ID)
+        Angle = This:egpAngle(ID)
+        Size = This:egpSize(ID)
+        
+        if(Angle == 0)
+        {
+            return inrange(Cursor, Center - Size / 2, Center + Size / 2)
+        }
+        
+        else
+        {
+            return inrange((Cursor - Center):rotate(Angle) / Size, vec2(-0.5), vec2(0.5))
+        }
+    }
+    
+    EGP:drawWelcomeScreen()
+    interval(150)
+}
+
+elseif(clk("StartScreenFadeOut"))
+{
+    if(Cache["Alpha", number] <= 0)
+    {
+        for(I = 4, 5)
+        {
+            EGP:egpRemove(I)
+        }
+        
+        ShipmentNames = array(R1:shipmentName(), R2:shipmentName(), R3:shipmentName(), R4:shipmentName())
+        ShipmentPrices = array(R1:shipmentPrice(), R2:shipmentPrice(), R3:shipmentPrice(), R4:shipmentPrice())
+        
+        for(I = 4, 7, 1)
+        {
+            EGP:egpRoundedBox(I, vec2(256, 200 + I * 100), vec2(384, 90))
+            EGP:egpAlpha(I, 120)
+        }
+        
+        for(I = 8, 11)
+        {
+            EGP:egpText(I, ShipmentNames[I - 7, string] + " - $" + (ShipmentPrices[I - 7, number] / 10 + Cache["Profit", number]), vec2(0))
+            EGP:egpAlign(I, 1, 1)
+            EGP:egpSize(I, 32)
+            EGP:egpColor(I, vec(0))
+            EGP:egpParent(I, I-4)
+        }
+        
+        timer("GunScreenSlideUp", 25)
+    }
+    
+    else
+    {
+        Cache["Alpha", number] = Cache["Alpha", number] - 4
+        timer("StartScreenFadeOut", 20)
+        for(I = 2, 3)
+        {
+            EGP:egpPos(I, EGP:egpPos(I) - vec2(0, 1.5))
+        }
+        EGP:egpSize(2, EGP:egpSize(2) - vec2(0, 1.2))
+        
+        for(I = 4, 7)
+        {
+            EGP:egpAlpha(I, Cache["Alpha", number])
+        }
+    }
+}
+
+elseif(clk("GunScreenSlideUp"))
+{
+    if(EGP:egpPos(4):y() < 120)
+    {
+        Cache["Page", number] = 2
+        
+        EGPObjs = EGP:egpNumObjects() + 1
+        
+        EGP:egpBox(EGPObjs, vec2(256), vec2(32))
+        EGP:egpMaterial(EGPObjs, "vgui/cursors/hand")
+        EGP:egpParentToCursor(EGPObjs)
+        
+        EGPObjs++
+        
+        EGP:egpRoundedBox(EGPObjs, vec2(256, 512), vec2(256, 64))
+        EGP:egpAlpha(EGPObjs, 120)
+        print(EGPObjs)
+        
+        EGPObjs++
+        
+        EGP:egpText(EGPObjs, "Exit" ,vec2(256, 496))
+        EGP:egpSize(EGPObjs, 32)
+        EGP:egpAlign(EGPObjs, 1, 1)
+        EGP:egpColor(EGPObjs, vec(0))
+        
+        interval(150)
+    }
+    
+    else
+    {
+        for(I = 4, 7, 1)
+        {
+            EGP:egpPos(I, EGP:egpPos(I) - vec2(0, 5))
+        }
+        timer("GunScreenSlideUp", 25)
+    }
+}
+
+elseif(inputClkName() == "R1" && Cache["Page", number] == 2)
+{
+    EGP:egpSetText(8, R1:shipmentName() + " - " + (R1:shipmentPrice() + Cache["Profit", number]))
+}
+
+elseif(inputClkName() == "R2" && Cache["Page", number] == 2)
+{
+    EGP:egpSetText(9, R2:shipmentName() + " - " + (R2:shipmentPrice() + Cache["Profit", number]))
+}
+
+elseif(inputClkName() == "R3" && Cache["Page", number] == 2)
+{
+    EGP:egpSetText(10, R3:shipmentName() + " - " + (R3:shipmentPrice() + Cache["Profit", number]))
+}
+
+elseif(inputClkName() == "R4" && Cache["Page", number] == 2)
+{
+    EGP:egpSetText(11, R4:shipmentName() + " - " + (R4:shipmentPrice() + Cache["Profit", number]))
+}
+
+elseif(moneyClk("BuyGun1"))
+{
+    U1 = 1
+    timer("ResetUsers", 200)
+}
+
+elseif(moneyClk("BuyGun2"))
+{
+    U2 = 1
+    timer("ResetUsers", 200)
+}
+
+elseif(moneyClk("BuyGun3"))
+{
+    U3 = 1
+    timer("ResetUsers", 200)
+}
+
+elseif(moneyClk("BuyGun4"))
+{
+    U4 = 1
+    timer("ResetUsers", 200)
+}
+
+elseif(clk("ResetUsers"))
+{
+    U1 = 0
+    U2 = 0
+    U3 = 0
+    U4 = 0
+}
+
+elseif(inputClkName() == "User")
+{
+    if(Cache["Page", number] == 1)
+    {
+        if(EGP:hoverButton(User, 4))
+        {
+            stoptimer("interval")
+            timer("StartScreenFadeOut", 50)
+        }
+        
+        if(EGP:hoverButton(User, 6))
+        {
+            DoorFade = !DoorFade
+        }
+    }
+    
+    elseif(Cache["Page", number] == 2)
+    {
+        ShipmentPrices = array(R1:shipmentPrice(), R2:shipmentPrice(), R3:shipmentPrice(), R4:shipmentPrice())
+        Rangers = array(R1, R2, R3, R4)
+        
+        for(I = 4, 7, 1)
+        {   
+            if(EGP:hoverButton(User, I))
+            {
+                if(Rangers[I - 3, entity]:isShipment())
+                {
+                    moneyRequest(User, ShipmentPrices[I - 3, number] / 10 + Cache["Profit", number], "BuyGun" + (I-3), 60)
+                }
+            }   
+        }
+        
+        if(EGP:hoverButton(User, 13))
+        {
+            reset()
+        }
+    }
+}
+
+else
+{
+    interval(250
+    )
+    if(Cache["Page", number] == 1)
+    {
+        findByClass("player")
+        Ply = findClosest(entity():pos())
+        
+        if(EGP:hoverButton(Ply, 4))
+        {
+            EGP:egpAlpha(4, 200)
+        }
+        
+        else
+        {
+            EGP:egpAlpha(4, 120)
+        }
+        
+        if(EGP:hoverButton(Ply, 6))
+        {
+            EGP:egpAlpha(6, 200)
+        }
+        
+        else
+        {
+            EGP:egpAlpha(6, 120)
+        }
+    }
+    
+    elseif(Cache["Page", number] == 2)
+    {
+        findByClass("player")
+        Ply = findClosest(entity():pos())
+        
+        for(I = 4, 7, 1)
+        {
+            ShipmentPrices = array(R1:shipmentPrice(), R2:shipmentPrice(), R3:shipmentPrice(), R4:shipmentPrice())
+            Rangers = array(R1, R2, R3, R4)
+            
+            KeyUse = Ply:keyUse()
+            
+            if(EGP:hoverButton(Ply, I))
+            {
+                EGP:egpAlpha(I, 200)
+            }
+            
+            else
+            {
+                EGP:egpAlpha(I, 120)
+            }
+        }
+        
+        if(Ply:pos():distance(EGP:entity():pos()) > 100)
+        {
+            reset()
+        }
+    }
+}
